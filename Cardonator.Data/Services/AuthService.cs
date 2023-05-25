@@ -4,11 +4,10 @@ using Cardonator.Data.Services.Abstractions;
 using Cardonator.Models.Abstraction;
 using Cardonator.Models.DTO;
 using Cardonator.Models.Models;
-using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore.Metadata.Conventions;
 using System.Net;
 using System.Security.Claims;
+using Microsoft.AspNetCore.Http;
 
 namespace Cardonator.Data.Services;
 
@@ -16,32 +15,38 @@ public class AuthService : IAuthService
 {
     private readonly UserManager<CardonatorUser> _userManager;
     private readonly SignInManager<CardonatorUser> _signInManager;
-    private readonly AuthResponseMaker _authResponseMaker;
     private readonly IUserRepository _userRepository;
+    private readonly IUserService _userService;
+    private readonly HttpContext _httpContext;
+    private IResponse? _authResponseMaker;
 
     public AuthService(
         UserManager<CardonatorUser> userManager,
         SignInManager<CardonatorUser> signInManager,
         IUserRepository userRepository,
-        IUserService userService)
+        IUserService userService,
+        IHttpContextAccessor httpContextAccessor)
     {
         _userManager = userManager;
         _signInManager = signInManager;
         _userRepository = userRepository;
-        _authResponseMaker = new AuthResponseMaker(userService);
+        _userService = userService;
+        _httpContext = httpContextAccessor.HttpContext;
     }
 
     public async Task<AuthResponse?> Login(LoginModel loginModel)
     {
+        _authResponseMaker = new LoginResponseMaker(_userService);
+        
         Response authResponse = null;
 
         var user = await _userManager.FindByNameAsync(loginModel.Login) ?? await _userManager.FindByEmailAsync(loginModel.Login);
 
         if(user is null)
         {
-            authResponse = await _authResponseMaker.MakeResponceAsync(
+            authResponse = await _authResponseMaker.MakeResponseAsync(
                 $"There isn't user with name or email {loginModel.Login}",
-                loginModel.Login,  
+                loginModel.Login,
                 HttpStatusCode.NotFound);
         }
         else
@@ -50,14 +55,14 @@ public class AuthService : IAuthService
 
             if (result.Succeeded)
             {
-                authResponse = await _authResponseMaker.MakeResponceAsync(
+                authResponse = await _authResponseMaker.MakeResponseAsync(
+                    "You are successfully Logged on",
                     user.UserName,
-                    "You are succsessfully logined",
                     HttpStatusCode.OK);
             }
             else
             {
-                authResponse = await _authResponseMaker.MakeResponceAsync(
+                authResponse = await _authResponseMaker.MakeResponseAsync(
                     message: "Wrong password",
                     statusCode: HttpStatusCode.Unauthorized);
             }
@@ -68,9 +73,11 @@ public class AuthService : IAuthService
 
     public async Task<AuthResponse> Signup(SignupModel signupModel)
     {
+        _authResponseMaker = new SignupResponseMaker();
+        
         var checkUser = await _userManager.FindByNameAsync(signupModel.Name) ?? await _userManager.FindByEmailAsync(signupModel.Email);
         bool isAllowedToSignup;
-        AuthResponse authResponse = (AuthResponse)await _authResponseMaker.MakeResponceAsync(string.Empty, signupModel.Name, HttpStatusCode.BadRequest);
+        AuthResponse authResponse = (AuthResponse)await _authResponseMaker.MakeResponseAsync(string.Empty, signupModel.Name, HttpStatusCode.BadRequest);
 
         if (checkUser != null && checkUser.UserName == signupModel.Name)
         {
@@ -120,7 +127,9 @@ public class AuthService : IAuthService
 
     public async Task<Response> Logout()
     {
-        Response authResponse = await _authResponseMaker.MakeResponceAsync(message: string.Empty);
+        _authResponseMaker = new LoginResponseMaker(_userService);
+
+        Response authResponse = await _authResponseMaker.MakeResponseAsync(message: string.Empty);
 
         try
         {

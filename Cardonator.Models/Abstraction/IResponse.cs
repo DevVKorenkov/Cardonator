@@ -4,7 +4,7 @@ namespace Cardonator.Models.Abstraction;
 
 public interface IResponse
 {
-    Task<Response> MakeResponceAsync(
+    Task<Response> MakeResponseAsync(
         string message,
         string objNname = null, 
         HttpStatusCode statusCode = HttpStatusCode.OK);

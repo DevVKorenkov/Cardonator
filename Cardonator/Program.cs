@@ -28,12 +28,16 @@ services
     .AddDefaultTokenProviders()
     .AddEntityFrameworkStores<CardsDataContext>();
 
-services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-    .AddCookie(opt =>
-    {
-        opt.Cookie.Name = "CardinatorAuth";
-        opt.ExpireTimeSpan = TimeSpan.FromDays(3);
-    });
+services.ConfigureApplicationCookie(opt =>
+{
+    opt.Cookie.Name = "CardinatorAuth";
+    opt.ExpireTimeSpan = TimeSpan.FromDays(3);
+    opt.SlidingExpiration = true;
+});
+
+services
+    .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie();
 
 services.AddAuthorization();
 

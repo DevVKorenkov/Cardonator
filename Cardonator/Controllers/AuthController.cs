@@ -23,4 +23,13 @@ public class AuthController : Controller
 
         return Json(result);
     }
+
+    [HttpPost]
+    [Route("signin")]
+    public async Task<IActionResult> Signin(LoginModel loginModel)
+    {
+        var result = await _authService.Login(loginModel);
+        
+        return Json(result);
+    }
 }
